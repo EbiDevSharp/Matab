@@ -9,7 +9,7 @@ class HistoryTests(unittest.TestCase):
  def setUp(self):self.temp=tempfile.TemporaryDirectory();self.db=Database(Path(self.temp.name)/'test.sqlite3');self.db.write(0,FIXTURE)
  def tearDown(self):self.temp.cleanup()
  def test_release_seed_once_and_noop_write(self):
-  initial=self.db.history()['total'];self.assertEqual(len(self.db.releases()['releases']),4);self.assertEqual(self.db.releases()['current']['versionName'],'1.2.1');self.db.write(1,FIXTURE);self.assertEqual(self.db.history()['total'],initial);again=Database(self.db.path);self.assertEqual(again.history()['total'],initial)
+  initial=self.db.history()['total'];self.assertEqual(len(self.db.releases()['releases']),5);self.assertEqual(self.db.releases()['current']['versionName'],'1.2.2');self.db.write(1,FIXTURE);self.assertEqual(self.db.history()['total'],initial);again=Database(self.db.path);self.assertEqual(again.history()['total'],initial)
  def test_changed_fields_and_crud(self):
   next=copy.deepcopy(FIXTURE);next['records'][0]['note']='اصلاح آزمایشی';self.db.write(1,next);rows=self.db.history({'entityType':'service','action':'update'})['rows'];self.assertEqual(len(rows),1);self.assertEqual(rows[0]['details']['fields'],['note']);next['records']=[];self.db.write(2,next);self.assertEqual(self.db.history({'action':'delete','entityType':'service'})['total'],2);self.assertGreater(self.db.history({'action':'delete','entityType':'payment'})['total'],0)
  def test_restore_keeps_current_and_deduplicates_history(self):
@@ -40,4 +40,9 @@ class HistoryTests(unittest.TestCase):
     cols=[r[1] for r in old.execute('PRAGMA table_info('+table+')')];rows=current.execute('SELECT '+','.join(cols)+' FROM '+table).fetchall();old.executemany('INSERT INTO '+table+' VALUES('+','.join('?' for _ in cols)+')',rows)
    old.executemany('INSERT OR REPLACE INTO meta VALUES(?,?)',[('clinic','مطب قبلی'),('revision','7'),('stateVersion','4'),('financeSettings','{"divisorMilli":2000}')]);old.commit()
   upgraded=Database(legacy);before=upgraded.read();self.assertEqual(before['revision'],7);self.assertEqual(before['state']['version'],4);self.assertEqual(before['state']['records'][0]['payments'][0]['feeBps'],1320);self.assertEqual(len(before['state']['receipts']),2);self.assertTrue((Path(self.temp.name)/'matab-before-v3.sqlite3.bak').exists());upgraded.write(7,FIXTURE);self.assertEqual(upgraded.read()['state'],FIXTURE);self.assertEqual(upgraded.history({'action':'migrate'})['total'],1)
+ def test_doctor_owned_material_roundtrip_and_guard(self):
+  state=copy.deepcopy(FIXTURE);state['receipts'][0].update(doctorId='doc1',doctorLabel='پزشک آزمایشی');self.db.write(1,state);self.assertEqual(self.db.read()['state']['receipts'][0]['doctorId'],'doc1')
+  wrong=copy.deepcopy(state);wrong['records'][0]['doctorId']=None;wrong['records'][0]['doctorLabel']=''
+  with self.assertRaises(ValueError):self.db.write(2,wrong)
+  self.assertEqual(self.db.read()['revision'],2)
 if __name__=='__main__':unittest.main()

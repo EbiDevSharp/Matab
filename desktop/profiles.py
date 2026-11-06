@@ -19,4 +19,10 @@ def validate_profiles(v):
         require(text(r.get('firstName'),80) and text(r.get('lastName'),80) and text(r.get('legacyName'),161) and mobile(r.get('mobile')) and (r.get('patientId') is None or r['patientId'] in ids) and (r.get('doctorId') is None or r['doctorId'] in doctors) and text(r.get('doctorLabel'),80) and r.get('shareMode') in ('divisor','percent') and integer(r.get('doctorBps'),0,10000))
         require((r['doctorId'] is None and r['doctorLabel']=='') or (r['doctorId'] is not None and bool(r['doctorLabel'].strip())))
         require(r['patient']==name(r));require(r['patientId'] is not None or (not name(r) and not r['mobile']))
+    owners={}
+    for receipt in v.get('receipts',[]):
+        if receipt.get('doctorId') is not None:
+            require(receipt['doctorId'] in doctors and text(receipt.get('doctorLabel'),80) and bool(receipt['doctorLabel'].strip()));owners[receipt['id']]=receipt['doctorId']
+    for record in v['records']:
+        for use in record.get('consumptions',[]):require(use['receiptId'] not in owners or owners[use['receiptId']]==record['doctorId'],'پزشک خدمت با پزشک مواد مصرفی یکسان نیست.')
     return v

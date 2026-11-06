@@ -87,6 +87,9 @@ class Database:
             receipts=[]
             for r in db.execute('SELECT * FROM receipts ORDER BY created'):
                 receipts.append(dict(zip(['id','created','date','productId','productLabel','quantityMilli','packUnit','contentsMilli','baseUnit','unitPrice','receivedMilli','totalCost','note'],[r[k] for k in ['id','created','receipt_date','product_id','product_label','quantity_milli','pack_unit','contents_milli','base_unit','unit_price','received_milli','total_cost','note']])))
+            profiles={r['receipt_id']:r for r in db.execute('SELECT * FROM receipt_profiles')}
+            for r in receipts:
+                if r['id'] in profiles:r.update(doctorId=profiles[r['id']]['doctor_id'],doctorLabel=profiles[r['id']]['doctor_label'])
             return {'revision':revision,'state':{'version':int(meta.get('stateVersion','3')),'clinic':meta['clinic'],'catalogs':cats,'records':records,'receipts':receipts,'settings':json.loads(meta.get('financeSettings','{"divisorMilli":2000}')),'patients':[{'id':p['id'],'created':p['created'],'firstName':p['first_name'],'lastName':p['last_name'],'mobile':p['mobile'],'legacyName':p['legacy_name']} for p in db.execute('SELECT * FROM patients ORDER BY created,id')],'lastBackup':json.loads(meta.get('lastBackup','null'))}}
 
     def write(self,expected,state,operation='save',imported_history=None):
@@ -100,11 +103,12 @@ class Database:
             current=int(db.execute("SELECT value FROM meta WHERE key='revision'").fetchone()[0])
             if current!=expected:raise Conflict('اطلاعات در پنجره دیگری تغییر کرده؛ صفحه را دوباره باز کنید و تغییرات را تکرار کنید.')
             previous=self.read()['state']
-            db.execute('DELETE FROM consumptions');db.execute('DELETE FROM receipts');db.execute('DELETE FROM payments');db.execute('DELETE FROM records');db.execute('DELETE FROM patients');db.execute('DELETE FROM catalogs')
+            db.execute('DELETE FROM receipt_profiles');db.execute('DELETE FROM consumptions');db.execute('DELETE FROM receipts');db.execute('DELETE FROM payments');db.execute('DELETE FROM records');db.execute('DELETE FROM patients');db.execute('DELETE FROM catalogs')
             for kind in KINDS:
                 db.executemany('INSERT INTO catalogs(kind,id,name,active,sort_order,fee_bps) VALUES(?,?,?,?,?,?)',[(kind,c['id'],c['name'],int(c['active']),i,c.get('feeBps',0)) for i,c in enumerate(state['catalogs'][kind])])
             db.executemany('INSERT INTO patients(id,created,first_name,last_name,mobile,legacy_name) VALUES(?,?,?,?,?,?)',[tuple(p[k] for k in ['id','created','firstName','lastName','mobile','legacyName']) for p in state['patients']])
             db.executemany('INSERT INTO receipts VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)',[tuple(r[k] for k in ['id','created','date','productId','productLabel','quantityMilli','packUnit','contentsMilli','baseUnit','unitPrice','receivedMilli','totalCost','note']) for r in state['receipts']])
+            db.executemany('INSERT INTO receipt_profiles VALUES(?,?,?)',[(r['id'],r['doctorId'],r['doctorLabel']) for r in state['receipts'] if r.get('doctorId') is not None])
             for r in state['records']:
                 db.execute('INSERT INTO records(id,created,service_date,patient,service,product,area,volume,unit,price,amount,note,cost_reviewed,divisor_milli,patient_id,details_json) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',tuple(r[k] for k in ('id','created','date','patient','service','product','area','volume','unit','price','amount','note'))+(int(r['costReviewed']),r['divisorMilli'],r['patientId'],json.dumps({k:r[k] for k in ['firstName','lastName','mobile','legacyName','doctorId','doctorLabel','shareMode','doctorBps']},ensure_ascii=False)))
                 db.executemany('INSERT INTO payments(record_id,id,amount,payment_date,method,method_label,stage,note,legacy,sort_order,fee_bps) VALUES(?,?,?,?,?,?,?,?,?,?,?)',[(r['id'],p['id'],p['amount'],p['date'],p['method'],p['methodLabel'],p['stage'],p['note'],int(p['legacy']),i,p['feeBps']) for i,p in enumerate(r['payments'])])

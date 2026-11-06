@@ -18,3 +18,5 @@ CREATE TABLE IF NOT EXISTS activity_log(id INTEGER PRIMARY KEY AUTOINCREMENT,occ
 CREATE INDEX IF NOT EXISTS idx_log_day ON activity_log(local_day,id);
 CREATE INDEX IF NOT EXISTS idx_log_action ON activity_log(action,entity_type,id);
 CREATE TABLE IF NOT EXISTS app_releases(version_code INTEGER PRIMARY KEY,version_name TEXT NOT NULL,release_date TEXT NOT NULL,changes_json TEXT NOT NULL);
+
+CREATE TABLE IF NOT EXISTS receipt_profiles(receipt_id TEXT PRIMARY KEY REFERENCES receipts(id) ON DELETE CASCADE,doctor_id TEXT NOT NULL,doctor_label TEXT NOT NULL);
