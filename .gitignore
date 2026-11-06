@@ -1,0 +1,9 @@
+signing/
+runtime/
+build/
+deliverables/
+__pycache__/
+*.pyc
+*.sqlite3*
+.openai/
+web/qa-*

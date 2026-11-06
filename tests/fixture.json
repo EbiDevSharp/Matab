@@ -1,0 +1,213 @@
+{
+  "version": 5,
+  "clinic": "مطب من",
+  "catalogs": {
+    "services": [
+      {
+        "id": "service-1",
+        "name": "تزریق ژل",
+        "active": true
+      },
+      {
+        "id": "service-2",
+        "name": "تزریق بوتاکس",
+        "active": true
+      },
+      {
+        "id": "service-3",
+        "name": "مزوتراپی",
+        "active": true
+      },
+      {
+        "id": "service-4",
+        "name": "اسکین‌بوستر",
+        "active": true
+      },
+      {
+        "id": "service-5",
+        "name": "تزریق عضلانی",
+        "active": true
+      },
+      {
+        "id": "service-6",
+        "name": "سایر خدمات",
+        "active": true
+      },
+      {
+        "id": "custom-service",
+        "name": "خدمت آزمایشی",
+        "active": true
+      }
+    ],
+    "products": [
+      {
+        "id": "custom-product",
+        "name": "محصول آزمایشی",
+        "active": true
+      }
+    ],
+    "areas": [
+      {
+        "id": "area-1",
+        "name": "لب",
+        "active": true
+      },
+      {
+        "id": "area-2",
+        "name": "خط خنده",
+        "active": true
+      },
+      {
+        "id": "area-3",
+        "name": "پیشانی",
+        "active": true
+      },
+      {
+        "id": "area-4",
+        "name": "دور چشم",
+        "active": true
+      },
+      {
+        "id": "area-5",
+        "name": "چانه",
+        "active": true
+      },
+      {
+        "id": "area-6",
+        "name": "گونه",
+        "active": true
+      },
+      {
+        "id": "area-7",
+        "name": "صورت",
+        "active": true
+      },
+      {
+        "id": "area-8",
+        "name": "بدن",
+        "active": true
+      }
+    ],
+    "methods": [
+      {
+        "id": "card",
+        "name": "کارت",
+        "active": true,
+        "feeBps": 0
+      },
+      {
+        "id": "cash",
+        "name": "نقدی",
+        "active": true,
+        "feeBps": 0
+      },
+      {
+        "id": "transfer",
+        "name": "انتقال بانکی",
+        "active": true,
+        "feeBps": 0
+      },
+      {
+        "id": "snapppay",
+        "name": "اسنپ‌پی",
+        "active": true,
+        "feeBps": 1320
+      },
+      {
+        "id": "digipay",
+        "name": "دیجی‌پی",
+        "active": true,
+        "feeBps": 0
+      },
+      {
+        "id": "other",
+        "name": "سایر",
+        "active": true,
+        "feeBps": 0
+      },
+      {
+        "id": "custom-terminal",
+        "name": "کارت‌خوان دوم",
+        "active": true,
+        "feeBps": 0
+      }
+    ],
+    "doctors": []
+  },
+  "records": [
+    {
+      "id": "record1",
+      "created": 1,
+      "date": "1405/08/14",
+      "patient": "نمونه ساختگی",
+      "service": "خدمت آزمایشی",
+      "product": "محصول آزمایشی",
+      "area": "لب",
+      "note": "",
+      "volume": 1,
+      "unit": "cc",
+      "price": 5000000,
+      "amount": 5000000,
+      "paid": 3000000,
+      "payments": [
+        {
+          "id": "deposit",
+          "amount": 1000000,
+          "date": "1405/08/13",
+          "method": "custom-terminal",
+          "methodLabel": "کارت‌خوان دوم",
+          "stage": "deposit",
+          "note": "",
+          "legacy": false,
+          "feeBps": 0
+        },
+        {
+          "id": "snapp",
+          "amount": 2000000,
+          "date": "1405/08/14",
+          "method": "snapppay",
+          "methodLabel": "اسنپ‌پی",
+          "stage": "payment",
+          "note": "",
+          "legacy": false,
+          "feeBps": 1320
+        }
+      ],
+      "costReviewed": false,
+      "divisorMilli": 2000,
+      "consumptions": [],
+      "firstName": "",
+      "lastName": "",
+      "legacyName": "نمونه ساختگی",
+      "mobile": "",
+      "patientId": "legacy-patient-0",
+      "doctorId": null,
+      "doctorLabel": "",
+      "shareMode": "divisor",
+      "doctorBps": 6000
+    }
+  ],
+  "lastBackup": null,
+  "settings": {
+    "divisorMilli": 2000,
+    "shareMode": "divisor",
+    "doctorBps": 6000,
+    "defaultDoctorId": null,
+    "appearance": {
+      "font": "vazirmatn",
+      "scale": 100,
+      "palette": "mint"
+    }
+  },
+  "receipts": [],
+  "patients": [
+    {
+      "id": "legacy-patient-0",
+      "created": 1,
+      "firstName": "",
+      "lastName": "",
+      "legacyName": "نمونه ساختگی",
+      "mobile": ""
+    }
+  ]
+}

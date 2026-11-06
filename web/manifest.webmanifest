@@ -1,0 +1,17 @@
+{
+  "id": "/",
+  "name": "دفتر مطب | خدمات و پرداخت‌ها",
+  "short_name": "دفتر مطب",
+  "lang": "fa",
+  "dir": "rtl",
+  "start_url": "/#overview",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#f6f8fa",
+  "theme_color": "#137b68",
+  "icons": [
+    {"src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any"},
+    {"src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any"},
+    {"src": "icon-maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable"}
+  ]
+}

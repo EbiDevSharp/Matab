@@ -1,0 +1,13 @@
+The Windows distribution includes the official Python Software Foundation Python 3.13.9 x64 embeddable runtime, retaining runtime/LICENSE.txt and component notices.
+
+Bundled local fonts retain their upstream licenses under web/fonts/:
+Vazirmatn v33.003 — SIL Open Font License 1.1 — github.com/rastikerdar/vazirmatn
+Shabnam v5.0.1 — SIL Open Font License 1.1 — github.com/rastikerdar/shabnam-font
+Sahel v3.4.0 — SIL Open Font License 1.1 — github.com/rastikerdar/sahel-font
+These fonts are bundled for offline use. Their original names and license files are retained.
+
+Tehran timezone data is from the IANA tz database distributed by the operating system (public-domain timezone data); timezone-Tehran.tzif is bundled for portable Python zoneinfo support.
+
+Android compilation uses official Android SDK build-tools 35.0.0/platform35 and Eclipse ECJ3.39.0. These build tools are not bundled in the runtime or source distribution. Android APIs are supplied by the OS. JVM tests may use the org.json test dependency separately; it is not bundled in the app.
+
+The leaf app icon is an original code-drawn asset. No remote font loader, analytics, advertising SDK or Google cloud authentication code is included.
