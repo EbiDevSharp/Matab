@@ -9,7 +9,7 @@ class HistoryTests(unittest.TestCase):
  def setUp(self):self.temp=tempfile.TemporaryDirectory();self.db=Database(Path(self.temp.name)/'test.sqlite3');self.db.write(0,FIXTURE)
  def tearDown(self):self.temp.cleanup()
  def test_release_seed_once_and_noop_write(self):
-  initial=self.db.history()['total'];self.assertEqual(len(self.db.releases()['releases']),3);self.assertEqual(self.db.releases()['current']['versionName'],'1.2.0');self.db.write(1,FIXTURE);self.assertEqual(self.db.history()['total'],initial);again=Database(self.db.path);self.assertEqual(again.history()['total'],initial)
+  initial=self.db.history()['total'];self.assertEqual(len(self.db.releases()['releases']),4);self.assertEqual(self.db.releases()['current']['versionName'],'1.2.1');self.db.write(1,FIXTURE);self.assertEqual(self.db.history()['total'],initial);again=Database(self.db.path);self.assertEqual(again.history()['total'],initial)
  def test_changed_fields_and_crud(self):
   next=copy.deepcopy(FIXTURE);next['records'][0]['note']='اصلاح آزمایشی';self.db.write(1,next);rows=self.db.history({'entityType':'service','action':'update'})['rows'];self.assertEqual(len(rows),1);self.assertEqual(rows[0]['details']['fields'],['note']);next['records']=[];self.db.write(2,next);self.assertEqual(self.db.history({'action':'delete','entityType':'service'})['total'],2);self.assertGreater(self.db.history({'action':'delete','entityType':'payment'})['total'],0)
  def test_restore_keeps_current_and_deduplicates_history(self):
