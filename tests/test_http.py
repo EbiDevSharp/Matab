@@ -29,4 +29,10 @@ class HttpTests(unittest.TestCase):
   status,body=self.request('/api/backup?scope=full',headers=h);self.assertEqual(json.loads(body)['state'],FIXTURE)
   self.assertEqual(self.request('/api/backup-event','POST',json.dumps({'scope':'full','destination':'drive'}),h)[0],200)
   status,body=self.request('/api/history?action=export',headers=h);self.assertEqual(json.loads(body)['total'],1)
+ def test_clinic_header_isolates_requests(self):
+  h={'X-Matab-Token':self.http.token,'Content-Type':'application/json'}
+  status,body=self.request('/api/clinics','POST',json.dumps({'name':'مطب دوم'}),h);self.assertEqual(status,200);id=json.loads(body)['id']
+  other={**h,'X-Matab-Clinic':id};self.assertEqual(self.request('/api/state','POST',json.dumps({'revision':0,'state':FIXTURE}),other)[0],200)
+  self.assertIsNone(json.loads(self.request('/api/state',headers=h)[1])['state']);self.assertEqual(json.loads(self.request('/api/state',headers=other)[1])['state'],FIXTURE)
+  self.assertNotEqual(self.request('/api/state',headers={**h,'X-Matab-Clinic':'missing'})[0],200)
 if __name__=='__main__':unittest.main()

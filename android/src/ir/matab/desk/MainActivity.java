@@ -12,11 +12,11 @@ import java.io.*;
 import java.nio.charset.StandardCharsets;
 
 public class MainActivity extends Activity {
- private WebView web; private LocalDatabase database; private ValueCallback<Uri[]> chooser;
+ private WebView web; private ClinicManager clinicManager;private LocalDatabase database; private ValueCallback<Uri[]> chooser;
  private String exportText;private static final int EXPORT=601,IMPORT=602;
  private static final String HOST="appassets.androidplatform.net";
  private static String error(String message){try{return new JSONObject().put("error",message).toString();}catch(Exception e){return "{}";}}
- @Override public void onCreate(Bundle state){super.onCreate(state);try{database=new LocalDatabase(this);database.getWritableDatabase();}catch(Exception e){new AlertDialog.Builder(this).setTitle("دفتر مطب").setMessage("پایگاه داده باز نشد. فضای حافظه دستگاه را بررسی کنید.").setPositiveButton("بستن",(d,w)->finish()).show();return;}
+ @Override public void onCreate(Bundle state){super.onCreate(state);try{database=new LocalDatabase(this);database.getWritableDatabase();clinicManager=new ClinicManager(this,database);}catch(Exception e){new AlertDialog.Builder(this).setTitle("دفتر مطب").setMessage("پایگاه داده باز نشد. فضای حافظه دستگاه را بررسی کنید.").setPositiveButton("بستن",(d,w)->finish()).show();return;}
   getWindow().setStatusBarColor(0xff137b68);getWindow().setNavigationBarColor(0xfff6f8fa);getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE);
   android.widget.FrameLayout root=new android.widget.FrameLayout(this);root.setBackgroundColor(0xfff6f8fa);root.setOnApplyWindowInsetsListener((v,insets)->{v.setPadding(insets.getSystemWindowInsetLeft(),insets.getSystemWindowInsetTop(),insets.getSystemWindowInsetRight(),insets.getSystemWindowInsetBottom());return insets.consumeSystemWindowInsets();});
   web=new WebView(this);root.addView(web,new android.widget.FrameLayout.LayoutParams(-1,-1));setContentView(root);
@@ -32,6 +32,7 @@ public class MainActivity extends Activity {
  private static boolean owned(Uri u){return "https".equals(u.getScheme())&&HOST.equals(u.getHost())&&u.getPort()==-1;}
  private static WebResourceResponse denied(){return new WebResourceResponse("text/plain","UTF-8",new ByteArrayInputStream(new byte[0]));}
  public final class Bridge {
+  @JavascriptInterface public String clinicRequest(String id,String action,String payload){try{return clinicManager.request(id,action,new JSONObject(payload)).toString();}catch(Exception e){return error(e.getMessage()==null?"عملیات مطب انجام نشد.":e.getMessage());}}
   @JavascriptInterface public String readState(){try{return database.read().toString();}catch(Exception e){return error("خواندن پایگاه داده ممکن نشد.");}}
   @JavascriptInterface public String writeState(String body){try{if(body.length()>20*1024*1024)return error("حجم اطلاعات بیش از حد مجاز است.");return database.write(new JSONObject(body)).toString();}catch(Exception e){return error(e.getMessage()!=null&&e.getMessage().startsWith("اطلاعات")?e.getMessage():"ذخیره در پایگاه داده انجام نشد؛ اطلاعات قبلی حفظ شده است.");}}
   @JavascriptInterface public String readHistory(String query){try{return database.history(new JSONObject(query)).toString();}catch(Exception e){return error("خواندن تاریخچه ممکن نشد.");}}
@@ -46,5 +47,5 @@ public class MainActivity extends Activity {
  private void fileResult(boolean ok){if(web!=null)web.evaluateJavascript("window.MatabExportResult&&window.MatabExportResult("+ok+")",null);}
  @Override protected void onActivityResult(int request,int result,Intent intent){super.onActivityResult(request,result,intent);if(request==IMPORT){if(chooser!=null){chooser.onReceiveValue(result==RESULT_OK&&intent!=null&&intent.getData()!=null?new Uri[]{intent.getData()}:null);chooser=null;}return;}if(request==EXPORT){boolean ok=false;try{if(result==RESULT_OK&&intent!=null&&intent.getData()!=null&&exportText!=null){try(OutputStream out=getContentResolver().openOutputStream(intent.getData(),"wt")){if(out==null)throw new IOException();out.write(exportText.getBytes(StandardCharsets.UTF_8));ok=true;}}}catch(Exception e){}finally{exportText=null;fileResult(ok);}}}
  @Override public void onBackPressed(){if(web==null){finish();return;}web.evaluateJavascript("(()=>{let d=[...document.querySelectorAll('dialog[open]')];if(d.length){d[d.length-1].close();return true}if(location.hash&&location.hash!=='#overview'){location.hash='overview';return true}return false})()",value->{if(!"true".equals(value))finish();});}
- @Override protected void onDestroy(){if(chooser!=null)chooser.onReceiveValue(null);if(web!=null){web.removeJavascriptInterface("MatabNative");web.destroy();}if(database!=null)database.close();super.onDestroy();}
+ @Override protected void onDestroy(){if(chooser!=null)chooser.onReceiveValue(null);if(web!=null){web.removeJavascriptInterface("MatabNative");web.destroy();}if(clinicManager!=null)clinicManager.close();else if(database!=null)database.close();super.onDestroy();}
 }

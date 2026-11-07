@@ -4,6 +4,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import urlsplit,unquote,parse_qs
 from database import Database,Conflict
+from clinics import Clinics
 ROOT=Path(__file__).resolve().parent.parent
 WEB=ROOT/'web'
 class Handler(BaseHTTPRequestHandler):
@@ -24,6 +25,9 @@ class Handler(BaseHTTPRequestHandler):
         if self.headers.get('Sec-Fetch-Site') not in (None,'none','same-origin'):self.jsend(403,{'error':'درخواست از مبدا دیگری ارسال شده است.'});return False
         if token and not secrets.compare_digest(self.headers.get('X-Matab-Token',''),self.server.token):self.jsend(403,{'error':'صفحه را از طریق میان‌بر برنامه باز کنید.'});return False
         return True
+    def clinic_database(self):
+        if not hasattr(self.server,"clinics"):self.server.clinics=Clinics(self.server.database)
+        return self.server.clinics.get(self.headers.get("X-Matab-Clinic","main"))
     def do_GET(self):
         if not self.boundary():return
         path=urlsplit(self.path).path
@@ -32,11 +36,13 @@ class Handler(BaseHTTPRequestHandler):
         if path.startswith('/api/'):
             if not self.boundary(True):return
             try:
-                if path=='/api/state':self.jsend(200,self.server.database.read())
-                elif path=='/api/history':self.jsend(200,self.server.database.history({k:v[0] for k,v in parse_qs(urlsplit(self.path).query).items()}))
-                elif path=='/api/releases':self.jsend(200,self.server.database.releases())
-                elif path=='/api/backup':self.jsend(200,self.server.database.backup(parse_qs(urlsplit(self.path).query).get('scope',['full'])[0]))
-                elif path=='/api/info':self.jsend(200,{'location':str(self.server.database.path),'engine':'SQLite'})
+                database=self.clinic_database()
+                if path=='/api/clinics':self.jsend(200,self.server.clinics.list())
+                elif path=='/api/state':self.jsend(200,database.read())
+                elif path=='/api/history':self.jsend(200,database.history({k:v[0] for k,v in parse_qs(urlsplit(self.path).query).items()}))
+                elif path=='/api/releases':self.jsend(200,database.releases())
+                elif path=='/api/backup':self.jsend(200,database.backup(parse_qs(urlsplit(self.path).query).get('scope',['full'])[0]))
+                elif path=='/api/info':self.jsend(200,{'location':str(database.path),'engine':'SQLite'})
                 else:self.jsend(404,{'error':'مسیر پیدا نشد.'})
             except Exception:self.jsend(500,{'error':'خواندن پایگاه داده ممکن نشد. برنامه را دوباره اجرا کنید.'})
             return
@@ -48,15 +54,17 @@ class Handler(BaseHTTPRequestHandler):
         self.send(200,target.read_bytes(),mime+('; charset=utf-8' if mime.startswith('text/') else ''))
     def do_POST(self):
         if not self.boundary(True):return
-        if urlsplit(self.path).path not in ('/api/state','/api/backup-event'):self.jsend(404,{'error':'مسیر پیدا نشد.'});return
+        if urlsplit(self.path).path not in ('/api/state','/api/backup-event','/api/clinics'):self.jsend(404,{'error':'مسیر پیدا نشد.'});return
         try:
             length=int(self.headers.get('Content-Length','0'))
             if length<=0 or length>20*1024*1024:raise ValueError('حجم اطلاعات معتبر نیست.')
             if self.headers.get('Content-Type','').split(';')[0]!='application/json':raise ValueError('قالب درخواست معتبر نیست.')
             body=json.loads(self.rfile.read(length))
-            if urlsplit(self.path).path=='/api/backup-event':
-                self.server.database.backup_event(body.get('scope'),body.get('destination'));self.jsend(200,{'ok':True})
-            else:self.jsend(200,self.server.database.write(body.get('revision'),body.get('state'),body.get('operation','save'),body.get('history')))
+            database=self.clinic_database()
+            if urlsplit(self.path).path=='/api/clinics':self.jsend(200,self.server.clinics.create(body.get('name')))
+            elif urlsplit(self.path).path=='/api/backup-event':
+                database.backup_event(body.get('scope'),body.get('destination'));self.jsend(200,{'ok':True})
+            else:self.jsend(200,database.write(body.get('revision'),body.get('state'),body.get('operation','save'),body.get('history')))
         except Conflict as e:self.jsend(409,{'error':str(e)})
         except (ValueError,TypeError,AttributeError,KeyError) as e:self.jsend(400,{'error':'اطلاعات معتبر نیست یا قالب درخواست اشتباه است.'})
         except Exception:self.jsend(500,{'error':'ذخیره در پایگاه داده انجام نشد. اطلاعات قبلی حفظ شده است.'})
@@ -68,7 +76,7 @@ def main():
     try:server=ThreadingHTTPServer(('127.0.0.1',args.port),Handler)
     except OSError:
         print('The local port is already in use. Close the previous Matab window, or use --port with a different port.');return 1
-    server.token=secrets.token_urlsafe(32);server.database=database
+    server.token=secrets.token_urlsafe(32);server.database=database;server.clinics=Clinics(database)
     address='http://127.0.0.1:'+str(server.server_port)
     print('Matab Desk: '+address+'\nSQLite: '+str(database.path)+'\nKeep this window open. Press Ctrl+C to stop.',flush=True)
     if not args.no_browser:threading.Timer(.4,lambda:webbrowser.open(address)).start()

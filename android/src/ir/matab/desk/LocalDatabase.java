@@ -12,7 +12,8 @@ import java.util.*;
 final class LocalDatabase extends SQLiteOpenHelper {
  private final Context context; private final JSONObject years;
  private static final String[] KINDS={"services","products","areas","methods","doctors"};
- LocalDatabase(Context c)throws Exception{super(c,"matab.sqlite3",null,4);context=c;years=new JSONObject(readAsset(c,"calendar-years.json"));}
+ LocalDatabase(Context c)throws Exception{this(c,"matab.sqlite3");}
+ LocalDatabase(Context c,String filename)throws Exception{super(c,filename,null,4);context=c;years=new JSONObject(readAsset(c,"calendar-years.json"));}
  static String readAsset(Context c,String name)throws IOException{try(InputStream in=c.getAssets().open(name);ByteArrayOutputStream out=new ByteArrayOutputStream()){byte[] b=new byte[8192];int n;while((n=in.read(b))!=-1)out.write(b,0,n);return new String(out.toByteArray(),StandardCharsets.UTF_8);}}
  @Override public void onConfigure(SQLiteDatabase db){db.setForeignKeyConstraintsEnabled(true);}
  @Override public void onCreate(SQLiteDatabase db){try{for(String statement:readAsset(context,"schema.sql").split(";"))if(!statement.trim().isEmpty())db.execSQL(statement);}catch(Exception e){throw new IllegalStateException(e);}}

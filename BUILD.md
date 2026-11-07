@@ -50,3 +50,13 @@ Desktop binds only 127.0.0.1, validates Host/Origin/Sec-Fetch-Site and requires 
 Distribute clean source files, README/guide/licenses, calendar data, release notes and timezone data. Windows additionally includes runtime/. Source privately includes signing/. Exclude build/, deliverables/, test databases, caches, qa-* pages, .openai/ and preview package.json. No patient or synthetic QA database is distributed.
 
 Physical Android installation, Windows execution and a real Google Drive account were not available for acceptance here. Browser checks use the same UI against the Linux SQLite backend.
+
+## Version 1.3.0: clinic isolation
+
+The original `matab.sqlite3` remains the `main` clinic. A separate `clinics.sqlite3` registry stores opaque clinic IDs and names; new clinic files are `clinic-<id>.sqlite3` in the same data directory. State schema 5 and per-clinic domain storage remain compatible. Android SQLite schema stays 4; the registry is managed separately.
+
+Each page captures its clinic ID from the URL once. Desktop requests carry `X-Matab-Clinic`, resolved against the registry; native requests use `ClinicManager.request(id, action, payload)`. Unknown scope fails closed. No globally active bank is switched, so independent windows cannot redirect each other's writes. Per-clinic revision checks remain active. New clinics start with fresh defaults and no patient/service/inventory data; the original bank is never moved or rewritten for registry setup.
+
+Registry listing derives current display names from initialized clinic state, so clinic renames/restores stay visible. JSON backup and restore target the active clinic only; the UI names the restore destination. There is no all-clinics archive, cross-clinic merger, shared doctor inventory or combined report in this version. For offline file-level backup, close the app and copy the entire data directory including the registry and all clinic DB files.
+
+Tests: `test_clinics.py` and HTTP scope tests verify independent state, restore/export history isolation, original data preservation, unknown IDs, duplicate creation and reopen. Physical Android/Windows acceptance is still required.
