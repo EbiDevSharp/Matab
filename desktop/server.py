@@ -76,11 +76,11 @@ class Handler(BaseHTTPRequestHandler):
 def main():
     parser=argparse.ArgumentParser();parser.add_argument('--host',choices=['127.0.0.1','localhost'],default='127.0.0.1');parser.add_argument('--strictPort',action='store_true');parser.add_argument('--port',type=int,default=int(os.environ.get('PORT','8765')));parser.add_argument('--no-browser',action='store_true');parser.add_argument('--data-dir');args=parser.parse_args()
     base=Path(args.data_dir) if args.data_dir else Path(os.environ.get('LOCALAPPDATA',Path.home()/'.local'/'share'))/'MatabDesk'
-    database=Database(base/'matab.sqlite3')
+    clinics=Clinics(base/'matab.sqlite3');database=clinics.get('main')
     try:server=ThreadingHTTPServer(('127.0.0.1',args.port),Handler)
     except OSError:
         print('The local port is already in use. Close the previous Matab window, or use --port with a different port.');return 1
-    server.token=secrets.token_urlsafe(32);server.database=database;server.clinics=Clinics(database)
+    server.token=secrets.token_urlsafe(32);server.database=database;server.clinics=clinics
     address='http://127.0.0.1:'+str(server.server_port)
     print('Matab Desk: '+address+'\nSQLite: '+str(database.path)+'\nKeep this window open. Press Ctrl+C to stop.',flush=True)
     if not args.no_browser:threading.Timer(.4,lambda:webbrowser.open(address)).start()

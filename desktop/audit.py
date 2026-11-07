@@ -12,11 +12,13 @@ CREATE INDEX IF NOT EXISTS idx_log_action ON activity_log(action,entity_type,id)
 CREATE TABLE IF NOT EXISTS app_releases(version_code INTEGER PRIMARY KEY,version_name TEXT NOT NULL,release_date TEXT NOT NULL,changes_json TEXT NOT NULL);'''
 def now():return datetime.datetime.now(datetime.timezone.utc).isoformat(timespec='milliseconds').replace('+00:00','Z')
 def local_day(timestamp):return datetime.datetime.fromisoformat(timestamp.replace('Z','+00:00')).astimezone(TEHRAN).date().isoformat()
-def add(db,action,kind,label,entity_id='',details=None,stamp=None,imported=False,source=None):
+def add(db,action,kind,label,entity_id='',details=None,stamp=None,imported=False,source=None,clinic_id=None):
     stamp=stamp or now()
     if source is None:
         instance=db.execute("SELECT value FROM meta WHERE key='instanceId'").fetchone()[0];source=instance+':'+str(uuid.uuid4())
-    db.execute('INSERT OR IGNORE INTO activity_log(occurred_at,local_day,action,entity_type,entity_id,label,details_json,imported,source_key) VALUES(?,?,?,?,?,?,?,?,?)',(stamp,local_day(stamp),action,kind,str(entity_id),str(label)[:320],json.dumps(details or {},ensure_ascii=False),int(imported),source))
+    cols='occurred_at,local_day,action,entity_type,entity_id,label,details_json,imported,source_key';args=(stamp,local_day(stamp),action,kind,str(entity_id),str(label)[:320],json.dumps(details or {},ensure_ascii=False),int(imported),source)
+    if clinic_id is not None:cols+=',clinic_id';args+=(clinic_id,)
+    db.execute('INSERT OR IGNORE INTO activity_log('+cols+') VALUES('+','.join('?' for _ in args)+')',args)
 def initialize(db):
     db.executescript(SCHEMA)
     row=db.execute("SELECT value FROM meta WHERE key='instanceId'").fetchone()
@@ -35,8 +37,9 @@ def release_history(db):
 def log_json(db,row):
     instance=db.execute("SELECT value FROM meta WHERE key='instanceId'").fetchone()[0]
     return {'id':row['id'],'timestamp':row['occurred_at'],'action':row['action'],'entityType':row['entity_type'],'entityId':row['entity_id'],'label':row['label'],'details':json.loads(row['details_json']),'imported':bool(row['imported']),'sourceKey':row['source_key'] or instance+':'+str(row['id'])}
-def history(db,filters=None,all_rows=False):
+def history(db,filters=None,all_rows=False,clinic_id=None):
     f=filters or {};clauses=[];args=[]
+    if clinic_id is not None:clauses.append("(clinic_id=? OR clinic_id='*')");args.append(clinic_id)
     for key,column,allowed in [('action','action',ACTIONS),('entityType','entity_type',TYPES)]:
         value=f.get(key,'')
         if value:
@@ -68,9 +71,9 @@ def validate_import(rows):
         for k,n in [('timestamp',40),('entityId',250),('label',320),('sourceKey',200)]:
             if not isinstance(r.get(k),str) or len(r[k])>n:raise ValueError('تاریخچه پشتیبان معتبر نیست.')
         dt=datetime.datetime.fromisoformat(r['timestamp'].replace('Z','+00:00'))
-        if dt.tzinfo is None or not isinstance(r.get('details'),dict) or len(json.dumps(r['details'],ensure_ascii=False))>5000:raise ValueError('تاریخچه پشتیبان معتبر نیست.')
-def import_rows(db,rows):
-    for r in rows or []:add(db,r['action'],r['entityType'],r['label'],r['entityId'],r['details'],r['timestamp'],True,r['sourceKey'])
+        if dt.tzinfo is None or not isinstance(r.get('details'),dict) or len(json.dumps(r['details'],ensure_ascii=False))>2*1024*1024:raise ValueError('تاریخچه پشتیبان معتبر نیست.')
+def import_rows(db,rows,clinic_id=None):
+    for r in rows or []:add(db,r['action'],r['entityType'],r['label'],r['entityId'],r['details'],r['timestamp'],True,r['sourceKey'],clinic_id)
 def collections(s):
     out={}
     def put(kind,id,row,label):out[(kind,str(id))]=(row,str(label))
@@ -84,18 +87,19 @@ def collections(s):
         for c in r['consumptions']:put('material_use',r['id']+'/'+c['id'],c,'مصرف ماده · '+r['service'])
     for r in s['receipts']:put('material_receipt',r['id'],r,r['productLabel'])
     return out
-def record_changes(db,old,new,operation):
+def record_changes(db,old,new,operation,clinic_id=None):
+    emit=lambda *args,**kwargs:add(db,*args,**kwargs,clinic_id=('*' if clinic_id is not None and args[1] in ('service_type','product','area','payment_method') else clinic_id))
     if operation in ('restore','restore-settings'):
-        add(db,'restore','backup','بازیابی '+('تنظیمات' if operation=='restore-settings' else 'بانک کامل'),details={'services':len(new['records']),'receipts':len(new['receipts'])});return
-    if old is None:add(db,'add','settings','ایجاد بانک اطلاعات');return
-    if old.get('version',0)<5:add(db,'migrate','application','به‌روزرسانی ساختار اطلاعات با حفظ سوابق');return
+        emit('restore','backup','بازیابی '+('تنظیمات' if operation=='restore-settings' else 'بانک کامل'),details={'services':len(new['records']),'receipts':len(new['receipts'])});return
+    if old is None:emit('add','settings','ایجاد بانک اطلاعات');return
+    if old.get('version',0)<5:emit('migrate','application','به‌روزرسانی ساختار اطلاعات با حفظ سوابق');return
     before,after=collections(old),collections(new)
     for key in before.keys()|after.keys():
         a=before.get(key);b=after.get(key)
         if a and b and a[0]==b[0]:continue
         fields=[k for k in set(a[0] if a else {})|set(b[0] if b else {}) if (a[0] if a else {}).get(k)!=(b[0] if b else {}).get(k)]
-        add(db,'update' if a and b else 'add' if b else 'delete',key[0],(b or a)[1],key[1],{'fields':sorted(fields)[:40]})
-    if old['clinic']!=new['clinic']:add(db,'update','settings','تغییر نام مطب',details={'fields':['clinic']})
+        emit('update' if a and b else 'add' if b else 'delete',key[0],(b or a)[1],key[1],{'fields':sorted(fields)[:40],'before':a[0] if a else None,'after':b[0] if b else None})
+    if old['clinic']!=new['clinic']:emit('update','settings','تغییر نام مطب',details={'fields':['clinic'],'before':{'clinic':old['clinic']},'after':{'clinic':new['clinic']}})
     if old['settings']!=new['settings']:
         keys=[k for k in set(old['settings'])|set(new['settings']) if old['settings'].get(k)!=new['settings'].get(k)]
-        add(db,'update','appearance' if keys==['appearance'] else 'settings','تغییر تنظیمات برنامه',details={'fields':keys})
+        emit('update','appearance' if keys==['appearance'] else 'settings','تغییر تنظیمات برنامه',details={'fields':keys,'before':old['settings'],'after':new['settings']})

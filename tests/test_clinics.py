@@ -29,14 +29,14 @@ class ClinicTests(unittest.TestCase):
   before=self.registry.list()
   with self.assertRaises(ValueError):self.registry.restore_all(payload)
   self.assertEqual(self.registry.list(),before);self.assertEqual(self.primary.read()['state'],FIXTURE)
- def test_global_staging_failure_rolls_back_registry(self):
+ def test_global_transaction_failure_rolls_back(self):
   from unittest.mock import patch
-  payload=self.registry.backup_all();payload['clinics'].append(copy.deepcopy(payload['clinics'][0]));before=self.registry.list();real=Database;calls=[]
-  def staging(path):
-   calls.append(path)
-   if len(calls)==2:raise RuntimeError('synthetic disk failure')
-   return real(path)
-  with patch('clinics.Database',side_effect=staging):
+  payload=self.registry.backup_all();payload['clinics'].append(copy.deepcopy(payload['clinics'][0]));before=self.registry.list();merge=self.registry.merge;calls=[]
+  def failing(db,state,mode):
+   calls.append(1)
+   if len(calls)==2:raise RuntimeError('synthetic write failure')
+   return merge(db,state,mode)
+  with patch.object(self.registry,'merge',side_effect=failing):
    with self.assertRaises(RuntimeError):self.registry.restore_all(payload)
-  self.assertEqual(self.registry.list(),before);self.assertFalse(any(Path(self.temp.name).glob('clinic-*.sqlite3')))
+  self.assertEqual(self.registry.list(),before);self.assertEqual(self.registry.get('main').read()['state'],FIXTURE)
 if __name__=='__main__':unittest.main()

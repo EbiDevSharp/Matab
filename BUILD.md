@@ -1,6 +1,6 @@
-# MatabDesk 1.2.0
+# MatabDesk 1.4.0
 
-Independent Android host and loopback-only Python desktop server share the bundled Persian UI. State schema 5; Android SQLite schema 3; APK code 3. Local SQLite keeps catalogs, customer registry, service/payment snapshots, material receipts/consumption, append-only activity history and release notes.
+Independent Android host and loopback-only Python desktop server share the bundled Persian UI. State schema 5; legacy Android SQLite schema 4; APK code 8. Local SQLite keeps catalogs, customer registry, service/payment snapshots, material receipts/consumption, append-only activity history and release notes.
 
 ## Run and check
 
@@ -17,7 +17,7 @@ python3 -m unittest discover -s tests -p 'test_*.py'
 
 Run model scripts first to regenerate synthetic fixtures. Calendar checks cover 73,414 valid Persian dates in years 1300–1500. Python tests cover both previous SQLite schema upgrades, restart roundtrip, stale writers, atomic rejects, audit filtering (including Tehran local hours), history import/deduplication, backup scopes and HTTP boundaries.
 
-The Windows bundle includes official Python 3.13.9 x64 embeddable runtime and its license. `timezone-Tehran.tzif` supplies Tehran timezone data without requiring an external tzdata package. The desktop default path remains `%LOCALAPPDATA%/MatabDesk/matab.sqlite3`.
+The Windows bundle includes official Python 3.13.9 x64 embeddable runtime and its license. `timezone-Tehran.tzif` supplies Tehran timezone data without requiring an external tzdata package. The active desktop database is `%LOCALAPPDATA%/MatabDesk/matab-unified.sqlite3`; legacy files are retained after migration.
 
 ## Android
 
@@ -35,9 +35,9 @@ The build recursively bundles web assets and fonts, compiles, converts with D8, 
 
 `base-model.js` retains catalog validation, `finance-model.js` retains the previous financial schema, and `model.js` adds profiles/appearance/doctor/percentage validation. Earlier state versions migrate without guessing first/last-name splits. Divisor snapshots and unknown historical fees remain intact. Catalog rename never rewrites historical service labels.
 
-Quantities are thousandths, percentages basis points and currency integer toman. Products/fees/shares use exact integer ratios (JS BigInt, Python integers, Java BigInteger). Per-lot cumulative rounding reconciles full consumed cost. Shares use customer payments, not gateway remittances. Percentage and divisor modes are snapshotted per service; clinic share is the remainder after doctor share. Reviewed consumption and known fees are required for an eligible share. Negative shares may occur on partial payment.
+Quantities are thousandths, percentages basis points and currency integer toman. Products/fees/shares use exact integer ratios (JS BigInt, Python integers, Java BigInteger). Per-lot cumulative rounding reconciles full consumed cost. Shares use customer payments, not gateway remittances. Percentage is snapshotted per service; the UI migrates legacy divisors to percentage; clinic share is the remainder after doctor share. Reviewed consumption and known fees are required for an eligible share. Negative shares may occur on partial payment.
 
-Activity writes occur in the same transaction as the successful state write. No-op saves do not create false edits. Logs retain entity labels and changed field names, not full before/after snapshots, and do not provide undo or operator identity. Restore keeps local activity and imports history with unique source keys and imported markers. Repeated imports are deduplicated. Timestamps depend on the device clock; filters/display use Tehran timezone. Release notes are seeded from `releases.json` into `app_releases`.
+Activity writes occur in the same transaction as the successful state write. No-op saves do not create false edits. New logs retain entity labels, changed field names and full before/after snapshots; older logs retain only originally stored details. No undo or operator identity is provided. Restore keeps local activity and imports history with unique source keys and imported markers. Repeated imports are deduplicated. Timestamps depend on the device clock; filters/display use Tehran timezone. Release notes are seeded from `releases.json` into `app_releases`.
 
 Full JSON backups include domain state, audit history and release notes; settings backups exclude services, patients and inventory. Settings restore merges catalog identities and retains old referenced entries inactive. Ambiguous name/ID collisions are rejected. Full restore replaces domain data and is not multi-device record merging. JSON is unencrypted and capped at 20 MiB, imported history at 100,000 entries; oversized backups require offline SQLite file copying after shutdown.
 
@@ -51,20 +51,12 @@ Distribute clean source files, README/guide/licenses, calendar data, release not
 
 Physical Android installation, Windows execution and a real Google Drive account were not available for acceptance here. Browser checks use the same UI against the Linux SQLite backend.
 
-## Version 1.3.0: clinic isolation
+## Version 1.4.0: unified clinic storage
 
-The original `matab.sqlite3` remains the `main` clinic. A separate `clinics.sqlite3` registry stores opaque clinic IDs and names; new clinic files are `clinic-<id>.sqlite3` in the same data directory. State schema 5 and per-clinic domain storage remain compatible. Android SQLite schema stays 4; the registry is managed separately.
+Python Clinics and Android ClinicManager use one matab-unified.sqlite3 file. Clinics stores private domain JSON and revisions by clinic ID; shared_catalogs stores the services/products/areas/methods reference lists. activity_log is scoped by clinic_id, with '*' for shared reference changes. Doctors, patient registries, receipts, service/payment/consumption snapshots and settings remain clinic-specific. This is local separation, not access control or multiuser authentication.
 
-Each page captures its clinic ID from the URL once. Desktop requests carry `X-Matab-Clinic`, resolved against the registry; native requests use `ClinicManager.request(id, action, payload)`. Unknown scope fails closed. No globally active bank is switched, so independent windows cannot redirect each other's writes. Per-clinic revision checks remain active. New clinics start with fresh defaults and no patient/service/inventory data; the original bank is never moved or rewritten for registry setup.
+First launch transactionally imports the legacy main bank and registry-linked banks; legacy_clinics.py remains solely for migration. Original files remain available as fallback archives, never active after the marker commits. Matching normalized reference names merge, conflicting IDs with different names are remapped, and historical labels, payment fees and receipt costs remain snapshots. Any global reference change increments every clinic revision to fence stale windows.
 
-Registry listing derives current display names from initialized clinic state, so clinic renames/restores stay visible. JSON backup and restore target the active clinic only; the UI names the restore destination. There is no all-clinics archive, cross-clinic merger, shared doctor inventory or combined report in this version. For offline file-level backup, close the app and copy the entire data directory including the registry and all clinic DB files.
+Full/settings backup formats remain compatible. Restore adds missing shared options while retaining existing shared defaults; all-clinic restore adds fresh clinic IDs and suffixes duplicate names. Backup-all uses one SQLite read transaction; restore-all commits the entire collection in one transaction. Limits: 100 clinics, 1,000 entries per shared catalog, 20 MiB JSON backup, 100,000 imported history rows per clinic.
 
-Tests: `test_clinics.py` and HTTP scope tests verify independent state, restore/export history isolation, original data preservation, unknown IDs, duplicate creation and reopen. Physical Android/Windows acceptance is still required.
-
-## Version 1.3.1: all-clinic backup
-
-`matab-all-clinics` formatVersion 1 contains named per-clinic full envelopes (state, settings, domain records, activity history and release notes). Registry identifiers are not reused on import. Full import creates fresh UUID-backed bank files and preserves existing banks. Duplicate names get a localized restore suffix. It is a collection copy, not synchronization or replacement of the existing installation.
-
-Import validates every state/history first, stages independent banks, and only exposes all registry entries after the registry transaction commits. A staging failure rolls back registry inserts and removes the new files; existing files are untouched. A crash before commit may leave unlisted staging files but never redirects existing clinic IDs. Limits remain 20 MiB per JSON file, 100 clinics total and 100,000 imported history entries per clinic. Individual snapshots are transactional; the desktop bundle is not a simultaneous cross-process snapshot of independent banks.
-
-Tests cover whole-collection roundtrip, retained original data, imported history, invalid second bank, synthetic staging/disk failure rollback, and authenticated HTTP endpoints. Physical-device SAF/Drive acceptance remains separate.
+New audit events contain before/after JSON snapshots. Rows open a detail dialog; historical events without snapshots explicitly say so. No undo is provided. Per-event imported details are capped at 2 MiB. Migration and restore scope, catalog aliases, stale writes, deletion snapshots and transaction rollback are covered by test_unified.py and test_clinics.py. Physical Android/Windows acceptance remains required.
