@@ -20,4 +20,23 @@ class ClinicTests(unittest.TestCase):
   clinic=self.registry.create('مطب دوم');other=self.registry.get(clinic['id']);other.write(0,FIXTURE)
   with self.assertRaises(Conflict):other.write(0,FIXTURE)
   self.assertEqual(self.primary.read()['revision'],1);self.assertEqual(other.backup('settings')['format'],'matab-settings')
+ def test_global_backup_restore_keeps_existing_and_copies_every_bank(self):
+  second=self.registry.create('مطب دوم');bank=self.registry.get(second['id']);other=copy.deepcopy(FIXTURE);other['clinic']='مطب دوم';other['records']=[];bank.write(0,other)
+  payload=self.registry.backup_all();self.assertEqual(len(payload['clinics']),2);before=self.primary.read();result=self.registry.restore_all(payload);self.assertEqual(result['count'],2);self.assertEqual(len(self.registry.list()['clinics']),4);self.assertEqual(self.primary.read(),before)
+  restored=self.registry.get(result['firstId']).read()['state'];self.assertEqual(restored['records'],FIXTURE['records']);self.assertIn('بازیابی',restored['clinic']);self.assertTrue(any(r['imported'] for r in self.registry.get(result['firstId']).history()['rows']))
+ def test_invalid_global_file_is_atomic(self):
+  payload=self.registry.backup_all();payload['clinics'].append(copy.deepcopy(payload['clinics'][0]));payload['clinics'][1]['backup']['state']['records'][0]['amount']=-1
+  before=self.registry.list()
+  with self.assertRaises(ValueError):self.registry.restore_all(payload)
+  self.assertEqual(self.registry.list(),before);self.assertEqual(self.primary.read()['state'],FIXTURE)
+ def test_global_staging_failure_rolls_back_registry(self):
+  from unittest.mock import patch
+  payload=self.registry.backup_all();payload['clinics'].append(copy.deepcopy(payload['clinics'][0]));before=self.registry.list();real=Database;calls=[]
+  def staging(path):
+   calls.append(path)
+   if len(calls)==2:raise RuntimeError('synthetic disk failure')
+   return real(path)
+  with patch('clinics.Database',side_effect=staging):
+   with self.assertRaises(RuntimeError):self.registry.restore_all(payload)
+  self.assertEqual(self.registry.list(),before);self.assertFalse(any(Path(self.temp.name).glob('clinic-*.sqlite3')))
 if __name__=='__main__':unittest.main()

@@ -60,3 +60,11 @@ Each page captures its clinic ID from the URL once. Desktop requests carry `X-Ma
 Registry listing derives current display names from initialized clinic state, so clinic renames/restores stay visible. JSON backup and restore target the active clinic only; the UI names the restore destination. There is no all-clinics archive, cross-clinic merger, shared doctor inventory or combined report in this version. For offline file-level backup, close the app and copy the entire data directory including the registry and all clinic DB files.
 
 Tests: `test_clinics.py` and HTTP scope tests verify independent state, restore/export history isolation, original data preservation, unknown IDs, duplicate creation and reopen. Physical Android/Windows acceptance is still required.
+
+## Version 1.3.1: all-clinic backup
+
+`matab-all-clinics` formatVersion 1 contains named per-clinic full envelopes (state, settings, domain records, activity history and release notes). Registry identifiers are not reused on import. Full import creates fresh UUID-backed bank files and preserves existing banks. Duplicate names get a localized restore suffix. It is a collection copy, not synchronization or replacement of the existing installation.
+
+Import validates every state/history first, stages independent banks, and only exposes all registry entries after the registry transaction commits. A staging failure rolls back registry inserts and removes the new files; existing files are untouched. A crash before commit may leave unlisted staging files but never redirects existing clinic IDs. Limits remain 20 MiB per JSON file, 100 clinics total and 100,000 imported history entries per clinic. Individual snapshots are transactional; the desktop bundle is not a simultaneous cross-process snapshot of independent banks.
+
+Tests cover whole-collection roundtrip, retained original data, imported history, invalid second bank, synthetic staging/disk failure rollback, and authenticated HTTP endpoints. Physical-device SAF/Drive acceptance remains separate.

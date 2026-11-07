@@ -42,7 +42,7 @@ final class LocalDatabase extends SQLiteOpenHelper {
  private static long integer(JSONObject o,String key,long max)throws Exception{Object raw=o.get(key);require(raw instanceof Number);Number n=(Number)raw;long v=n.longValue();require(v>=0&&v<=max&&n.doubleValue()==(double)v);return v;}
  private boolean dateOK(String s){try{if(!s.matches("[0-9]{4}/[0-9]{2}/[0-9]{2}"))return false;String[] p=s.split("/");int y=Integer.parseInt(p[0]),m=Integer.parseInt(p[1]),d=Integer.parseInt(p[2]);if(y<1300||y>1500||m<1||m>12)return false;long days=java.time.temporal.ChronoUnit.DAYS.between(LocalDate.parse(years.getString(""+y)),LocalDate.parse(years.getString(""+(y+1))));return d>=1&&d<=(m<=6?31:m<12||days==366?30:29);}catch(Exception e){return false;}}
  private static String norm(String s){return Normalizer.normalize(s,Normalizer.Form.NFKC).replace('ي','ی').replace('ك','ک').replace('\u200c',' ').replace('\u200d',' ').trim().replaceAll("\\s+"," ").toLowerCase(Locale.ROOT);}
- private void validate(JSONObject s)throws Exception{
+ void validate(JSONObject s)throws Exception{
   require(s.getInt("version")==5);text(s,"clinic",80,true);JSONObject cats=s.getJSONObject("catalogs");Set<String> methodIds=new HashSet<>();
   for(String kind:KINDS){JSONArray a=cats.getJSONArray(kind);require(a.length()<=1000);Set<String> ids=new HashSet<>(),names=new HashSet<>();for(int i=0;i<a.length();i++){JSONObject c=a.getJSONObject(i);String id=text(c,"id",100,true),name=text(c,"name",80,true);require(!id.equals("unknown")&&ids.add(id)&&names.add(norm(name))&&c.get("active") instanceof Boolean);if(kind.equals("methods"))methodIds.add(id);}}
   JSONArray records=s.getJSONArray("records");require(records.length()<=100000);Set<String> ids=new HashSet<>();long total=0;

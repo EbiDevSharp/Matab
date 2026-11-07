@@ -16,7 +16,7 @@ async function loadReleases(){$('#releases-panel').hidden=false;$('#activity-pan
 let backingUp=false;
 async function createBackup(scope='full',destination='local'){
  if(backingUp)return toast('پشتیبان‌گیری قبلی هنوز تمام نشده است.');backingUp=true;let handle=null;
- try{const name=`matab-${scope==='settings'?'settings':'backup'}-${today.replaceAll('/','-')}.json`;
+ try{const name=`matab-${scope==='all'?'all-clinics':scope==='settings'?'settings':'backup'}-${today.replaceAll('/','-')}.json`;
   if(destination==='drive'&&!window.MatabNative&&window.showSaveFilePicker){handle=await window.showSaveFilePicker({suggestedName:name,types:[{description:'پشتیبان دفتر مطب',accept:{'application/json':['.json']}}]})}
   const snapshot=await MatabStore.backup(scope);if(scope==='full'&&snapshot.history.length>100000)throw Error('تاریخچه از ظرفیت پشتیبان JSON بیشتر شده است؛ از کپی بانک SQLite پس از بستن برنامه استفاده کنید.');snapshot.createdAt=new Date().toISOString();const payload=JSON.stringify(snapshot,null,2);if(new Blob([payload]).size>20*1024*1024)throw Error('فایل از ۲۰ مگابایت بزرگ‌تر است؛ برای پشتیبان بزرگ از کپی بانک SQLite در ویندوز، پس از بستن برنامه، استفاده کنید.');
   if(handle){const writable=await handle.createWritable();try{await writable.write(payload);await writable.close()}catch(err){try{await writable.abort()}catch{}throw err}}

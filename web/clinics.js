@@ -9,7 +9,7 @@ $('#clinic-create-form').onsubmit=async e=>{e.preventDefault();const button=e.su
 const clinicRender=render;render=function(){clinicRender();$('#clinic-breadcrumb').textContent=data.clinic;$('#clinic-switch option:checked')?.replaceChildren(document.createTextNode(data.clinic))};
 const oldBoot=boot;boot=async function(){await oldBoot();if(!storageBroken)await refreshClinics()};
 const notice=document.createElement('p');notice.className='finance-note';notice.textContent='پشتیبان و بازیابی فقط مربوط به مطب فعال است؛ برای هر مطب جداگانه پشتیبان بگیرید. بازیابی، اطلاعات سایر مطب‌ها را تغییر نمی‌دهد.';$('#settings-backup').prepend(notice);
-const clinicAsk=ask;ask=function(title,body,label,action){if(title.includes('بازیابی'))body='مطب مقصد: «'+data.clinic+'». '+body;clinicAsk(title,body,label,action)};
-$('#restore').addEventListener('click',()=>toast('بازیابی در مطب «'+data.clinic+'» انجام می‌شود.'));
+const clinicAsk=ask;ask=function(title,body,label,action){if(title.includes('بازیابی')&&!title.includes('همه مطب'))body='مطب مقصد: «'+data.clinic+'». '+body;clinicAsk(title,body,label,action)};
+$('#restore').addEventListener('click',()=>toast('فایل کلی یا پشتیبان مطب را انتخاب کنید.'));
 
 helpTopics.push(['clinics','مدیریت چند مطب','']);const topic=document.createElement('details');topic.className='help-topic';topic.innerHTML='<summary>مدیریت چند مطب</summary><div class="help-body"><p>از انتخاب‌گر بالای صفحه، مطب فعال را انتخاب کنید یا با «مطب جدید» یک مطب مستقل بسازید. خدمات، مشتریان، پزشکان، موجودی، تنظیمات و فعالیت‌ها برای هر مطب جداست. مطب قبلی بدون جابه‌جایی بانک حفظ می‌شود.</p><p>هر پنجره روی مطب خودش می‌ماند. نام مطب را در تنظیمات همان مطب ویرایش کنید. برای هر مطب جداگانه پشتیبان بگیرید؛ بازیابی فقط اطلاعات مطب فعال را جایگزین می‌کند و انتقال یا ادغام خودکار بین مطب‌ها وجود ندارد.</p></div>';$('#help-topics').append(topic);

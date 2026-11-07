@@ -35,4 +35,8 @@ class HttpTests(unittest.TestCase):
   other={**h,'X-Matab-Clinic':id};self.assertEqual(self.request('/api/state','POST',json.dumps({'revision':0,'state':FIXTURE}),other)[0],200)
   self.assertIsNone(json.loads(self.request('/api/state',headers=h)[1])['state']);self.assertEqual(json.loads(self.request('/api/state',headers=other)[1])['state'],FIXTURE)
   self.assertNotEqual(self.request('/api/state',headers={**h,'X-Matab-Clinic':'missing'})[0],200)
+ def test_global_backup_routes(self):
+  h={'X-Matab-Token':self.http.token,'Content-Type':'application/json'};self.request('/api/state','POST',json.dumps({'revision':0,'state':FIXTURE}),h)
+  self.assertEqual(self.request('/api/backup-all')[0],403);status,body=self.request('/api/backup-all',headers=h);self.assertEqual(status,200);payload=json.loads(body);self.assertEqual(payload['format'],'matab-all-clinics');self.assertEqual(self.request('/api/restore-all','POST',json.dumps(payload),h)[0],200)
+  self.assertEqual(len(json.loads(self.request('/api/clinics',headers=h)[1])['clinics']),2)
 if __name__=='__main__':unittest.main()

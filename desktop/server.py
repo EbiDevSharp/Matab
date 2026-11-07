@@ -38,6 +38,7 @@ class Handler(BaseHTTPRequestHandler):
             try:
                 database=self.clinic_database()
                 if path=='/api/clinics':self.jsend(200,self.server.clinics.list())
+                elif path=='/api/backup-all':self.jsend(200,self.server.clinics.backup_all())
                 elif path=='/api/state':self.jsend(200,database.read())
                 elif path=='/api/history':self.jsend(200,database.history({k:v[0] for k,v in parse_qs(urlsplit(self.path).query).items()}))
                 elif path=='/api/releases':self.jsend(200,database.releases())
@@ -54,7 +55,7 @@ class Handler(BaseHTTPRequestHandler):
         self.send(200,target.read_bytes(),mime+('; charset=utf-8' if mime.startswith('text/') else ''))
     def do_POST(self):
         if not self.boundary(True):return
-        if urlsplit(self.path).path not in ('/api/state','/api/backup-event','/api/clinics'):self.jsend(404,{'error':'مسیر پیدا نشد.'});return
+        if urlsplit(self.path).path not in ('/api/state','/api/backup-event','/api/clinics','/api/restore-all','/api/backup-all-event'):self.jsend(404,{'error':'مسیر پیدا نشد.'});return
         try:
             length=int(self.headers.get('Content-Length','0'))
             if length<=0 or length>20*1024*1024:raise ValueError('حجم اطلاعات معتبر نیست.')
@@ -62,6 +63,9 @@ class Handler(BaseHTTPRequestHandler):
             body=json.loads(self.rfile.read(length))
             database=self.clinic_database()
             if urlsplit(self.path).path=='/api/clinics':self.jsend(200,self.server.clinics.create(body.get('name')))
+            elif urlsplit(self.path).path=='/api/restore-all':self.jsend(200,self.server.clinics.restore_all(body))
+            elif urlsplit(self.path).path=='/api/backup-all-event':
+                self.server.clinics.backup_all_event(body.get('destination'));self.jsend(200,{'ok':True})
             elif urlsplit(self.path).path=='/api/backup-event':
                 database.backup_event(body.get('scope'),body.get('destination'));self.jsend(200,{'ok':True})
             else:self.jsend(200,database.write(body.get('revision'),body.get('state'),body.get('operation','save'),body.get('history')))
